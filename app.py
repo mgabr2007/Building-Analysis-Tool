@@ -7,6 +7,14 @@ from collections import defaultdict
 import tempfile
 import os
 
+# Function to count building components in an IFC file
+def count_building_components(ifc_file):
+    component_count = defaultdict(int)
+    for ifc_entity in ifc_file.by_type('IfcProduct'):
+        entity_type = ifc_entity.is_a()
+        component_count[entity_type] += 1
+    return component_count
+
 # Improved function to read Excel file with content-based caching
 @st.cache(hash_funcs={bytes: hash})
 def read_excel(file):
@@ -75,6 +83,25 @@ def excel_analysis():
             st.write(df.describe().to_string())
         except Exception as e:
             st.error(f"Error reading Excel file: {e}")
+
+def visualize_component_count_bar_chart(component_count):
+    labels, values = zip(*sorted(component_count.items(), key=lambda item: item[1], reverse=True))
+    fig, ax = plt.subplots()
+    ax.bar(labels, values)
+    ax.set_xlabel('Component Types')
+    ax.set_ylabel('Count')
+    ax.set_title('Count of Different Building Components')
+    plt.xticks(rotation=90)
+    plt.tight_layout()
+    return fig
+
+def visualize_component_count_pie_chart(component_count):
+    labels, sizes = zip(*component_count.items())
+    fig, ax = plt.subplots()
+    ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+    ax.axis('equal')
+    plt.tight_layout()
+    return fig
 
 # Render the selected app mode
 if app_mode == "IFC File Analysis":
