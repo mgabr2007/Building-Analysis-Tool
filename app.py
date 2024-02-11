@@ -5,6 +5,8 @@ import ifcopenshell
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import os
+import plotly.graph_objects as go
+import numpy as np
 
 # Function to count building components in an IFC file
 def count_building_components(ifc_file):
@@ -46,10 +48,38 @@ def read_excel(file):
     df = df.astype(str)
     return df
 
+# New function: Extract and visualize IFC geometry
+def extract_and_visualize_ifc_geometry(ifc_file):
+    settings = ifcopenshell.geom.settings()
+    settings.set(settings.USE_PYTHON_OPENCASCADE, True)
+    
+    vertices = []  # List to hold vertices
+    faces = []  # List to hold faces
+    
+    # Extract geometry for walls, doors, windows, and slabs
+    for element in ifc_file.by_type('IfcWall') + ifc_file.by_type('IfcDoor') + ifc_file.by_type('IfcWindow') + ifc_file.by_type('IfcSlab'):
+        shape = ifcopenshell.geom.create_shape(settings, element)
+        verts = np.array(shape.geometry.verts).reshape((-1, 3))
+        fcs = np.array(shape.geometry.faces).reshape((-1, 3))
+        
+        # Update vertices and faces lists
+        vert_offset = len(vertices)
+        vertices.extend(verts)
+        faces.extend(fcs + vert_offset)
+    
+    return np.array(vertices), np.array(faces)
+
+def plot_ifc_geometry(vertices, faces):
+    fig = go.Figure(data=[go.Mesh3d(x=vertices[:,0], y=vertices[:,1], z=vertices[:,2],
+                                    i=faces[:,0], j=faces[:,1], k=faces[:,2],
+                                    opacity=0.5)])
+    fig.update_layout(scene=dict(aspectmode='data'))
+    return fig
+
 # Sidebar for navigation
 st.sidebar.title("Analysis Options")
 app_mode = st.sidebar.selectbox("Choose the type of analysis",
-                                 ["IFC File Analysis", "Excel File Analysis"])
+                                 ["IFC File Analysis", "Excel File Analysis", "IFC Geometry Visualization"])
 
 # IFC Analysis Function
 def ifc_analysis():
@@ -102,8 +132,21 @@ def excel_analysis():
         st.write('Basic analysis:')
         st.write(df.describe().to_string())
 
+# IFC Geometry Visualization Function
+def ifc_geometry_visualization():
+    st.title('IFC Geometry Visualization')
+    uploaded_file = st.file_uploader("Choose an IFC file for geometry visualization", type=['ifc'], key='ifc_geom_uploader')
+
+    if uploaded_file is not None:
+        ifc_file = ifcopenshell.open(uploaded_file)
+        vertices, faces = extract_and_visualize_ifc_geometry(ifc_file)
+        fig = plot_ifc_geometry(vertices, faces)
+        st.plotly_chart(fig)
+
 # Render the selected app mode
 if app_mode == "IFC File Analysis":
     ifc_analysis()
 elif app_mode == "Excel File Analysis":
     excel_analysis()
+elif app_mode == "IFC Geometry Visualization":
+    ifc_geometry_visualization()
