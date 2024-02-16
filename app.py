@@ -33,23 +33,76 @@ def visualize_component_count(component_count, chart_type='bar'):
     return fig
 
 def visualize_data(df, columns):
-    for column in columns:
-        st.subheader(f"Visualization for {column}")
-        if pd.api.types.is_numeric_dtype(df[column]):
-            # Histogram for numerical data
-            fig, ax = plt.subplots()
-            df[column].plot(kind='hist', ax=ax, bins=20)
-            plt.xlabel(column)
-            plt.ylabel("Frequency")
+    chart_type = st.selectbox("Select chart type", ["Histogram", "Bar Chart"], index=0)
+    if chart_type == "Histogram":
+        for column in columns:
+            if pd.api.types.is_numeric_dtype(df[column]):
+                st.subheader(f"Histogram of {column}")
+                fig, ax = plt.subplots()
+                df[column].plot(kind='hist', ax=ax)
+                plt.xlabel(column)
+                st.pyplot(fig)
+            else:
+                st.write(f"Note: {column} is not numeric and cannot be displayed as a histogram.")
+    elif chart_type == "Bar Chart":
+        for column in columns:
+            if not pd.api.types.is_numeric_dtype(df[column]):
+                st.subheader(f"Bar Chart of {column}")
+                fig, ax = plt.subplots()
+                df[column].value_counts().plot(kind='bar', ax=ax)
+                plt.xticks(rotation=45)
+                st.pyplot(fig)
+            else:
+                st.write(f"Note: {column} is numeric and better suited for histograms.")
+
+def ifc_file_analysis():
+    uploaded_file = st.file_uploader("Choose an IFC file", type=['ifc'])
+    if uploaded_file is not None:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.ifc') as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            tmp_file_path = tmp_file.name
+        
+        try:
+            ifc_file = ifcopenshell.open(tmp_file_path)
+            component_count = count_building_components(ifc_file)
+            chart_type = st.radio("Chart Type", ['bar', 'pie'])
+            fig = visualize_component_count(component_count, chart_type)
             st.pyplot(fig)
-        else:
-            # Bar chart for categorical data
-            fig, ax = plt.subplots()
-            df[column].value_counts().plot(kind='bar', ax=ax)
-            plt.xticks(rotation=45)
-            plt.xlabel(column)
-            plt.ylabel("Count")
-            st.pyplot(fig)
+
+            if st.checkbox("Show Detailed Component Analysis"):
+                product_types = sorted({entity.is_a() for entity in ifc_file.by_type('IfcProduct')})
+                selected_product_type = st.selectbox("Select a product type for detailed analysis", product_types)
+                detailed_analysis(ifc_file, selected_product_type)
+
+            if st.checkbox("Show Spatial Structure"):
+                show_spatial_structure(ifc_file)
+        finally:
+            os.remove(tmp_file_path)
+
+def detailed_analysis(ifc_file, product_type):
+    components = ifc_file.by_type(product_type)
+    st.write(f"Total number of {product_type}: {len(components)}")
+    for component in components[:5]:  # Limit to first 5 for brevity
+        st.write(f"ID: {component.GlobalId}, Name: {component.Name}")
+
+def show_spatial_structure(ifc_file):
+    buildings = ifc_file.by_type('IfcBuilding')
+    for building in buildings:
+        st.write(f"Building: {building.Name}")
+        storeys = building.IsDecomposedBy[0].RelatedObjects
+        for storey in storeys:
+            st.write(f"-- Storey: {storey.Name}")
+
+def excel_file_analysis():
+    uploaded_file = st.file_uploader("Upload an Excel file", type=['xlsx'])
+    if uploaded_file is not None:
+        df = read_excel(uploaded_file)
+        selected_columns = st.multiselect("Select columns to display", df.columns.tolist(), default=df.columns.tolist())
+        df_filtered = df[selected_columns]
+        st.write(df_filtered)
+        
+        if st.button("Visualize Selected Data"):
+            visualize_data(df_filtered, selected_columns)
 
 def main():
     st.sidebar.title("Analysis Options")
@@ -59,40 +112,6 @@ def main():
         ifc_file_analysis()
     elif app_mode == "Excel File Analysis":
         excel_file_analysis()
-
-def ifc_file_analysis():
-    uploaded_file = st.file_uploader("Choose an IFC file", type=['ifc'])
-    if uploaded_file is not None:
-        # Save the uploaded file to a temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.ifc') as tmp_file:
-            tmp_file.write(uploaded_file.getvalue())
-            tmp_file_path = tmp_file.name
-        
-        try:
-            # Open the IFC file using its temporary path
-            ifc_file = ifcopenshell.open(tmp_file_path)
-            component_count = count_building_components(ifc_file)
-            chart_type = st.radio("Chart Type", ['bar', 'pie'])
-            fig = visualize_component_count(component_count, chart_type)
-            st.pyplot(fig)
-        finally:
-            # Clean up by removing the temporary file
-            os.remove(tmp_file_path)
-
-def excel_file_analysis():
-    uploaded_file = st.file_uploader("Upload an Excel file", type=['xlsx'])
-    if uploaded_file is not None:
-        df = read_excel(uploaded_file)
-        
-        # Allow user to select columns for analysis
-        selected_columns = st.multiselect("Select columns to display", df.columns.tolist(), default=df.columns.tolist())
-        
-        # Display the filtered dataframe with selected columns
-        df_filtered = df[selected_columns]
-        st.write(df_filtered)
-        
-        # Visualize selected data automatically
-        visualize_data(df_filtered, selected_columns)
 
 if __name__ == "__main__":
     main()
