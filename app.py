@@ -1,3 +1,21 @@
+"""
+IFC and Excel File Analysis Tool
+
+This Streamlit application provides an interactive interface for analyzing
+IFC (Industry Foundation Classes) files and Excel spreadsheets. It allows
+users to visualize component counts in IFC files and perform data analysis
+and visualization on Excel files.
+
+License:
+This project is licensed under the GNU General Public License v3.0.
+For more details, see the LICENSE file in the root directory of this source tree
+or visit https://www.gnu.org/licenses/gpl-3.0.en.html.
+
+Copyright:
+Copyright (C) [2024] [Mostafa Gabr].
+All rights reserved.
+
+"""
 import streamlit as st
 import pandas as pd
 import numpy as np
