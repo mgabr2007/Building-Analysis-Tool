@@ -19,7 +19,7 @@ def count_building_components(ifc_file):
     return component_count
 
 def visualize_component_count(component_count, chart_type='bar'):
-    """Visualize component count."""
+    """Visualize component count for IFC files."""
     labels, values = zip(*sorted(component_count.items(), key=lambda item: item[1], reverse=True))
     fig, ax = plt.subplots()
     if chart_type == 'bar':
@@ -32,7 +32,7 @@ def visualize_component_count(component_count, chart_type='bar'):
     st.pyplot(fig)
 
 def visualize_data(df, columns):
-    """Visualize data from Excel."""
+    """Visualize data from Excel files."""
     for column in columns:
         if pd.api.types.is_numeric_dtype(df[column]):
             fig, ax = plt.subplots()
@@ -46,7 +46,7 @@ def visualize_data(df, columns):
             st.pyplot(fig)
 
 def generate_insights(df):
-    """Generate insights from the DataFrame."""
+    """Generate insights from Excel data."""
     if not df.empty:
         numeric_columns = df.select_dtypes(include=[np.number]).columns.tolist()
         if numeric_columns:
@@ -74,7 +74,7 @@ def excel_file_analysis():
     if uploaded_file is not None:
         df = read_excel(uploaded_file)
         if not df.empty:
-            selected_columns = st.multiselect("Select columns to display", df.columns.tolist(), default=df.columns.tolist(), key="columns_select")
+            selected_columns = st.multiselect("Select columns to analyze", df.columns.tolist(), default=df.columns.tolist(), key="columns_select")
             if selected_columns:
                 st.dataframe(df[selected_columns])
                 if st.button("Visualize Data", key="visualize_button"):
