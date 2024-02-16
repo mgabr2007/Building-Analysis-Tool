@@ -26,27 +26,26 @@ def visualize_component_count(component_count, chart_type='bar'):
         ax.bar(labels, values)
         plt.xticks(rotation=90)
     elif chart_type == 'pie':
-        ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
+        ax.pie(values, labels=labels, autopct=lambda p: '{:.1f}%'.format(p) if p > 0 else '', startangle=140)
         ax.axis('equal')
     plt.tight_layout()
     return fig
 
 def detailed_analysis(ifc_file, product_type):
     product_count = defaultdict(int)
-    
     for product in ifc_file.by_type(product_type):
-        # Use name or another attribute as a differentiator if needed
         product_name = product.Name if product.Name else "Unnamed"
         # Split the name by ':' and take the first part to group by type
         type_name = product_name.split(':')[0] if product_name else "Unnamed"
         product_count[type_name] += 1
-    
+
+    total = sum(product_count.values())
     labels, values = zip(*product_count.items()) if product_count else ((), ())
     
-    # Generate pie chart for building elements products grouped by type
+    # Generate pie chart for building elements products
     if values:
         fig, ax = plt.subplots()
-        ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90, counterclock=False)
+        ax.pie(values, labels=labels, autopct=lambda p: '{:.1f}% ({}x)'.format(p, int(round(p * total / 100.0))) if p > 0 else '', startangle=90, counterclock=False)
         ax.axis('equal')
         plt.title(f"Distribution of {product_type} Products by Type")
         st.pyplot(fig)
