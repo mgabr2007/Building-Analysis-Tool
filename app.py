@@ -32,34 +32,48 @@ def visualize_component_count(component_count, chart_type='bar'):
     return fig
 
 def detailed_analysis(ifc_file, product_type):
-    # Initialize a dictionary to count instances of sub-types
     subtype_count = defaultdict(int)
-
-    # Iterate through all instances of the selected component type
     for component in ifc_file.by_type(product_type):
-        # Assume the subtype or a specific attribute is being used to differentiate instances
         subtype = getattr(component, 'PredefinedType', 'Undefined')
         subtype_count[subtype] += 1
-
-    # Prepare data for pie chart
-    labels, values = zip(*subtype_count.items())
-
-    # Generate pie chart if there are subtypes to display
+    labels, values = zip(*subtype_count.items()) if subtype_count else ((), ())
     if values:
         fig, ax = plt.subplots()
         ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90)
-        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+        ax.axis('equal')
         plt.title(f"Distribution of {product_type} by Sub-Type")
         st.pyplot(fig)
     else:
         st.write("No subtypes found for the selected component.")
 
-# Incorporate the detailed_analysis function into the ifc_file_analysis function as previously defined
-# Ensure you also include the rest of the Streamlit app structure as shown in earlier examples
+def ifc_file_analysis():
+    uploaded_file = st.file_uploader("Choose an IFC file", type=['ifc'])
+    if uploaded_file is not None:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.ifc') as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            tmp_file_path = tmp_file.name
+        
+        try:
+            ifc_file = ifcopenshell.open(tmp_file_path)
+            component_count = count_building_components(ifc_file)
+            chart_type = st.radio("Chart Type", ['bar', 'pie'])
+            fig = visualize_component_count(component_count, chart_type)
+            st.pyplot(fig)
+
+            if st.checkbox("Show Detailed Component Analysis"):
+                product_types = sorted({entity.is_a() for entity in ifc_file.by_type('IfcProduct')})
+                selected_product_type = st.selectbox("Select a product type for detailed analysis", product_types)
+                detailed_analysis(ifc_file, selected_product_type)
+        finally:
+            os.remove(tmp_file_path)
 
 def main():
-    # Streamlit app structure including the ifc_file_analysis function
-    # as outlined in earlier examples
+    st.sidebar.title("Analysis Options")
+    app_mode = st.sidebar.selectbox("Choose the type of analysis", ["IFC File Analysis", "Excel File Analysis"])
+
+    if app_mode == "IFC File Analysis":
+        ifc_file_analysis()
+    # Include the rest of your Streamlit app logic here
 
 if __name__ == "__main__":
     main()
