@@ -69,4 +69,4 @@ Contributions to improve the application are welcome. Please follow the standard
 
 ## License
 
-Specify your project's license here. Common choices include MIT, GPL, and Apache 2.0.
+This project is licensed under the GNU General Public License (GPL). For more details, see the [LICENSE](LICENSE) file included with the project or visit the [GNU General Public License GPL](https://www.gnu.org/licenses/gpl-3.0.en.html) webpage.
