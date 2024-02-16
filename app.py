@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import ifcopenshell
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -13,12 +14,12 @@ def count_building_components(ifc_file):
         component_count[ifc_entity.is_a()] += 1
     return component_count
 
-# Function to read Excel file with caching
+# Function to read and cache Excel files
 @st.cache(hash_funcs={tempfile.NamedTemporaryFile: lambda _: None}, allow_output_mutation=True)
 def read_excel(file):
     return pd.read_excel(file, engine='openpyxl')
 
-# Unified visualization function for both bar and pie charts
+# Visualization for component counts (IFC and Excel)
 def visualize_component_count(component_count, chart_type='bar'):
     labels, values = zip(*sorted(component_count.items(), key=lambda item: item[1], reverse=True))
     fig, ax = plt.subplots()
@@ -31,34 +32,45 @@ def visualize_component_count(component_count, chart_type='bar'):
     plt.tight_layout()
     return fig
 
-# Function to visualize data from Excel
-def visualize_data(df, columns):
-    chart_type = st.selectbox("Select chart type", ["Histogram", "Bar Chart"], index=0)
-    for column in columns:
-        if chart_type == "Histogram" and pd.api.types.is_numeric_dtype(df[column]):
-            st.subheader(f"Histogram of {column}")
-            fig, ax = plt.subplots()
-            df[column].plot(kind='hist', ax=ax)
-            plt.xlabel(column)
-            st.pyplot(fig)
-        elif chart_type == "Bar Chart" and not pd.api.types.is_numeric_dtype(df[column]):
-            st.subheader(f"Bar Chart of {column}")
-            fig, ax = plt.subplots()
-            df[column].value_counts().plot(kind='bar', ax=ax)
-            plt.xticks(rotation=45)
-            st.pyplot(fig)
+# Generate insights for Excel data
+def generate_insights(df):
+    insights = []
+    desc_stats = df.describe()
+    for column in df.select_dtypes(include=[np.number]):
+        insights.append(f"Mean of {column}: {desc_stats.at['mean', column]:.2f}")
+        insights.append(f"Median of {column}: {desc_stats.at['50%', column]:.2f}")
+        insights.append(f"Standard deviation of {column}: {desc_stats.at['std', column]:.2f}")
+        skew = df[column].skew()
+        if abs(skew) > 1:
+            skewness = 'highly skewed'
+        elif abs(skew) > 0.5:
+            skewness = 'moderately skewed'
+        else:
+            skewness = 'approximately symmetric'
+        insights.append(f"Distribution of {column} is {skewness} (skewness: {skew:.2f})")
+        Q1 = desc_stats.at['25%', column]
+        Q3 = desc_stats.at['75%', column]
+        IQR = Q3 - Q1
+        outlier_count = ((df[column] < (Q1 - 1.5 * IQR)) | (df[column] > (Q3 + 1.5 * IQR))).sum()
+        insights.append(f"Potential outliers in {column}: {outlier_count}")
+    if len(df.select_dtypes(include=[np.number]).columns) > 1:
+        corr_matrix = df.corr()
+        for index, value in corr_matrix.unstack().sort_values().iteritems():
+            if value > 0.7 and value < 1:
+                insights.append(f"{index[0]} and {index[1]} have a strong positive correlation (r: {value:.2f})")
+            elif value < -0.7:
+                insights.append(f"{index[0]} and {index[1]} have a strong negative correlation (r: {value:.2f})")
+    return insights
 
-# Function for detailed analysis in IFC
+# Detailed analysis for IFC files
 def detailed_analysis(ifc_file, product_type, sort_by):
     product_count = defaultdict(int)
     for product in ifc_file.by_type(product_type):
         product_name = product.Name if product.Name else "Unnamed"
         type_name = product_name.split(':')[0] if product_name else "Unnamed"
         product_count[type_name] += 1
-
     total = sum(product_count.values())
     labels, values = zip(*product_count.items()) if product_count else ((), ())
-
     if values:
         fig, ax = plt.subplots()
         wedges, texts, autotexts = ax.pie(values, labels=labels, autopct=lambda p: '{:.1f}% ({}x)'.format(p, int(round(p * total / 100.0))) if p > 0 else '', startangle=90, counterclock=False)
@@ -66,7 +78,6 @@ def detailed_analysis(ifc_file, product_type, sort_by):
         plt.setp(autotexts, size=8, weight="bold")
         plt.title(f"Distribution of {product_type} Products by Type")
         st.pyplot(fig)
-
         data = {'Type': labels, 'Count': values}
         df = pd.DataFrame(data)
         if sort_by == "Name":
@@ -84,14 +95,12 @@ def ifc_file_analysis():
         with tempfile.NamedTemporaryFile(delete=False, suffix='.ifc') as tmp_file:
             tmp_file.write(uploaded_file.getvalue())
             tmp_file_path = tmp_file.name
-        
         try:
             ifc_file = ifcopenshell.open(tmp_file_path)
             component_count = count_building_components(ifc_file)
             chart_type = st.radio("Chart Type", ['bar', 'pie'])
             fig = visualize_component_count(component_count, chart_type)
             st.pyplot(fig)
-
             if st.checkbox("Show Detailed Component Analysis"):
                 product_types = sorted({entity.is_a() for entity in ifc_file.by_type('IfcProduct')})
                 selected_product_type = st.selectbox("Select a product type for detailed analysis", product_types)
@@ -102,20 +111,23 @@ def ifc_file_analysis():
 
 # Excel file analysis function
 def excel_file_analysis():
-    uploaded_file = st.file_uploader("Upload an Excel file", type=['xlsx'])
+    uploaded_file = st.file_uploader("Upload an Excel file for analysis", type=['xlsx'])
     if uploaded_file is not None:
         df = read_excel(uploaded_file)
-        selected_columns = st.multiselect("Select columns to display", df.columns.tolist(), default=df.columns.tolist())
+        selected_columns = st.multiselect("Select columns to analyze", df.columns.tolist(), default=df.columns.tolist())
         if selected_columns:
             df_filtered = df[selected_columns]
             st.dataframe(df_filtered)
             if st.button("Visualize Selected Data"):
                 visualize_data(df_filtered, selected_columns)
+            if st.button("Generate Insights"):
+                insights = generate_insights(df_filtered)
+                for insight in insights:
+                    st.info(insight)
 
 def main():
     st.sidebar.title("Analysis Options")
     app_mode = st.sidebar.selectbox("Choose the type of analysis", ["IFC File Analysis", "Excel File Analysis"])
-
     if app_mode == "IFC File Analysis":
         ifc_file_analysis()
     elif app_mode == "Excel File Analysis":
