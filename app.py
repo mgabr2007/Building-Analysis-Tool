@@ -35,7 +35,6 @@ def detailed_analysis(ifc_file, product_type):
     product_count = defaultdict(int)
     for product in ifc_file.by_type(product_type):
         product_name = product.Name if product.Name else "Unnamed"
-        # Split the name by ':' and take the first part to group by type
         type_name = product_name.split(':')[0] if product_name else "Unnamed"
         product_count[type_name] += 1
 
@@ -45,10 +44,20 @@ def detailed_analysis(ifc_file, product_type):
     # Generate pie chart for building elements products
     if values:
         fig, ax = plt.subplots()
-        ax.pie(values, labels=labels, autopct=lambda p: '{:.1f}% ({}x)'.format(p, int(round(p * total / 100.0))) if p > 0 else '', startangle=90, counterclock=False)
+        wedges, texts, autotexts = ax.pie(values, labels=labels, autopct=lambda p: '{:.1f}% ({}x)'.format(p, int(round(p * total / 100.0))) if p > 0 else '', startangle=90, counterclock=False)
         ax.axis('equal')
+        plt.setp(autotexts, size=8, weight="bold")
         plt.title(f"Distribution of {product_type} Products by Type")
         st.pyplot(fig)
+
+        # Create a DataFrame for the table
+        data = {
+            'Type': labels,
+            'Count': values,
+            'Percentage': [f'{p:.1f}%' for p in (value * 100.0 / total for value in values)]
+        }
+        df = pd.DataFrame(data)
+        st.table(df)
     else:
         st.write(f"No products found for {product_type}.")
 
