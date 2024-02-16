@@ -31,6 +31,25 @@ def visualize_component_count(component_count, chart_type='bar'):
     plt.tight_layout()
     return fig
 
+def detailed_analysis(ifc_file, product_type):
+    # Count specific building elements products within the selected type
+    product_count = defaultdict(int)
+    for product in ifc_file.by_type(product_type):
+        # Use name or another attribute as a differentiator if needed
+        product_name = product.Name if product.Name else "Unnamed"
+        product_count[product_name] += 1
+    labels, values = zip(*product_count.items()) if product_count else ((), ())
+    
+    # Generate pie chart for building elements products
+    if values:
+        fig, ax = plt.subplots()
+        ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90, counterclock=False)
+        ax.axis('equal')
+        plt.title(f"Distribution of {product_type} Products")
+        st.pyplot(fig)
+    else:
+        st.write(f"No products found for {product_type}.")
+
 def ifc_file_analysis():
     uploaded_file = st.file_uploader("Choose an IFC file", type=['ifc'])
     if uploaded_file is not None:
@@ -45,11 +64,6 @@ def ifc_file_analysis():
             fig = visualize_component_count(component_count, chart_type)
             st.pyplot(fig)
 
-            # Display all component types and their counts
-            st.subheader("Component Type Counts")
-            for component_type, count in sorted(component_count.items(), key=lambda item: item[1], reverse=True):
-                st.text(f"{component_type}: {count}")
-
             if st.checkbox("Show Detailed Component Analysis"):
                 product_types = sorted({entity.is_a() for entity in ifc_file.by_type('IfcProduct')})
                 selected_product_type = st.selectbox("Select a product type for detailed analysis", product_types)
@@ -57,28 +71,13 @@ def ifc_file_analysis():
         finally:
             os.remove(tmp_file_path)
 
-def detailed_analysis(ifc_file, product_type):
-    subtype_count = defaultdict(int)
-    for component in ifc_file.by_type(product_type):
-        subtype = getattr(component, 'PredefinedType', 'Undefined')
-        subtype_count[subtype] += 1
-    labels, values = zip(*subtype_count.items()) if subtype_count else ((), ())
-    if values:
-        fig, ax = plt.subplots()
-        ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90)
-        ax.axis('equal')
-        plt.title(f"Distribution of {product_type} by Sub-Type")
-        st.pyplot(fig)
-    else:
-        st.write("No subtypes found for the selected component.")
-
 def main():
     st.sidebar.title("Analysis Options")
     app_mode = st.sidebar.selectbox("Choose the type of analysis", ["IFC File Analysis", "Excel File Analysis"])
 
     if app_mode == "IFC File Analysis":
         ifc_file_analysis()
-    # Excel file analysis function call can be added here as well
+    # Incorporate Excel file analysis or other functionality as needed
 
 if __name__ == "__main__":
     main()
