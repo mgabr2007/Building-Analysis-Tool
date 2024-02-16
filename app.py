@@ -33,27 +33,23 @@ def visualize_component_count(component_count, chart_type='bar'):
     return fig
 
 def visualize_data(df, columns):
-    chart_type = st.selectbox("Select chart type", ["Histogram", "Bar Chart"], index=0)
-    if chart_type == "Histogram":
-        for column in columns:
-            if pd.api.types.is_numeric_dtype(df[column]):
-                st.subheader(f"Histogram of {column}")
-                fig, ax = plt.subplots()
-                df[column].plot(kind='hist', ax=ax)
-                plt.xlabel(column)
-                st.pyplot(fig)
-            else:
-                st.write(f"Note: {column} is not numeric and cannot be displayed as a histogram.")
-    elif chart_type == "Bar Chart":
-        for column in columns:
-            if not pd.api.types.is_numeric_dtype(df[column]):
-                st.subheader(f"Bar Chart of {column}")
-                fig, ax = plt.subplots()
-                df[column].value_counts().plot(kind='bar', ax=ax)
-                plt.xticks(rotation=45)
-                st.pyplot(fig)
-            else:
-                st.write(f"Note: {column} is numeric and better suited for histograms.")
+    for column in columns:
+        st.subheader(f"Visualization for {column}")
+        if pd.api.types.is_numeric_dtype(df[column]):
+            # Histogram for numerical data
+            fig, ax = plt.subplots()
+            df[column].plot(kind='hist', ax=ax, bins=20)
+            plt.xlabel(column)
+            plt.ylabel("Frequency")
+            st.pyplot(fig)
+        else:
+            # Bar chart for categorical data
+            fig, ax = plt.subplots()
+            df[column].value_counts().plot(kind='bar', ax=ax)
+            plt.xticks(rotation=45)
+            plt.xlabel(column)
+            plt.ylabel("Count")
+            st.pyplot(fig)
 
 def main():
     st.sidebar.title("Analysis Options")
@@ -95,9 +91,8 @@ def excel_file_analysis():
         df_filtered = df[selected_columns]
         st.write(df_filtered)
         
-        # Visualization based on selected columns
-        if st.button("Visualize Selected Data"):
-            visualize_data(df_filtered, selected_columns)
+        # Visualize selected data automatically
+        visualize_data(df_filtered, selected_columns)
 
 if __name__ == "__main__":
     main()
