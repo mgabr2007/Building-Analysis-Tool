@@ -31,7 +31,7 @@ def visualize_component_count(component_count, chart_type='bar'):
     plt.tight_layout()
     return fig
 
-def detailed_analysis(ifc_file, product_type):
+def detailed_analysis(ifc_file, product_type, sort_by):
     product_count = defaultdict(int)
     for product in ifc_file.by_type(product_type):
         product_name = product.Name if product.Name else "Unnamed"
@@ -57,6 +57,13 @@ def detailed_analysis(ifc_file, product_type):
             'Percentage': [f'{p:.1f}%' for p in (value * 100.0 / total for value in values)]
         }
         df = pd.DataFrame(data)
+
+        # Sorting the DataFrame based on user selection
+        if sort_by == "Name":
+            df = df.sort_values('Type')
+        elif sort_by == "Count":
+            df = df.sort_values('Count', ascending=False)
+
         st.table(df)
     else:
         st.write(f"No products found for {product_type}.")
@@ -78,7 +85,11 @@ def ifc_file_analysis():
             if st.checkbox("Show Detailed Component Analysis"):
                 product_types = sorted({entity.is_a() for entity in ifc_file.by_type('IfcProduct')})
                 selected_product_type = st.selectbox("Select a product type for detailed analysis", product_types)
-                detailed_analysis(ifc_file, selected_product_type)
+
+                # Add a selectbox for sorting criteria
+                sort_by = st.selectbox("Sort table by", ["Name", "Count"], index=1)
+
+                detailed_analysis(ifc_file, selected_product_type, sort_by)
         finally:
             os.remove(tmp_file_path)
 
