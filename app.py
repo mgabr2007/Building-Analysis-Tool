@@ -81,17 +81,17 @@ def ifc_file_analysis():
 
 def detailed_analysis(ifc_file, product_type):
     components = ifc_file.by_type(product_type)
-    st.write(f"Total number of {product_type}: {len(components)}")
-    # Visualize with a pie chart
-    if len(components) > 0:
-        labels = [component.Name if component.Name else "Unnamed" for component in components[:10]]  # Limit to first 10 for clarity
-        sizes = [1 for _ in components[:10]]  # Equal sizes just to show distribution
-        fig1, ax1 = plt.subplots()
-        ax1.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
-        ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-        st.pyplot(fig1)
-    else:
-        st.write("No components found of this type.")
+    component_count = defaultdict(int)
+    for component in components:
+        component_count[component.is_a()] += 1
+    labels, values = zip(*component_count.items())
+
+    # Pie chart for the selected component type count
+    fig, ax = plt.subplots()
+    ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
+    ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+    plt.title(f"Distribution of {product_type}")
+    st.pyplot(fig)
 
 def show_spatial_structure(ifc_file):
     buildings = ifc_file.by_type('IfcBuilding')
