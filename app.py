@@ -32,20 +32,23 @@ def visualize_component_count(component_count, chart_type='bar'):
     return fig
 
 def detailed_analysis(ifc_file, product_type):
-    # Count specific building elements products within the selected type
     product_count = defaultdict(int)
+    
     for product in ifc_file.by_type(product_type):
         # Use name or another attribute as a differentiator if needed
         product_name = product.Name if product.Name else "Unnamed"
-        product_count[product_name] += 1
+        # Split the name by ':' and take the first part to group by type
+        type_name = product_name.split(':')[0] if product_name else "Unnamed"
+        product_count[type_name] += 1
+    
     labels, values = zip(*product_count.items()) if product_count else ((), ())
     
-    # Generate pie chart for building elements products
+    # Generate pie chart for building elements products grouped by type
     if values:
         fig, ax = plt.subplots()
         ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90, counterclock=False)
         ax.axis('equal')
-        plt.title(f"Distribution of {product_type} Products")
+        plt.title(f"Distribution of {product_type} Products by Type")
         st.pyplot(fig)
     else:
         st.write(f"No products found for {product_type}.")
