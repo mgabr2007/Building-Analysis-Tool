@@ -81,16 +81,18 @@ def ifc_file_analysis():
 
 def detailed_analysis(ifc_file, product_type):
     components = ifc_file.by_type(product_type)
-    component_count = defaultdict(int)
-    for component in components:
-        component_count[component.is_a()] += 1
-    labels, values = zip(*component_count.items())
+    # Count instances of the selected component type
+    component_count = len(components)
 
-    # Pie chart for the selected component type count
+    # Prepare data for pie chart
+    labels = [product_type]
+    values = [component_count]
+
+    # Generate pie chart
     fig, ax = plt.subplots()
-    ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
+    ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90)
     ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-    plt.title(f"Distribution of {product_type}")
+    plt.title(f"Count of {product_type}")
     st.pyplot(fig)
 
 def show_spatial_structure(ifc_file):
