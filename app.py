@@ -137,9 +137,9 @@ def main():
 if __name__ == "__main__":
     main()
 
-# Using markdown to add copyright notice
-st.markdown("""
----
+# Add copyright notice and license information to the sidebar
+st.sidebar.markdown("""
+----------------
 #### Copyright Notice
 Copyright (C) [2024] [Mostafa Gabr]. All rights reserved.
 
