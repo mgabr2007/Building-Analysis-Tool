@@ -32,6 +32,29 @@ def visualize_component_count(component_count, chart_type='bar'):
     plt.tight_layout()
     return fig
 
+def visualize_data(df, columns):
+    chart_type = st.selectbox("Select chart type", ["Histogram", "Bar Chart"], index=0)
+    if chart_type == "Histogram":
+        for column in columns:
+            if pd.api.types.is_numeric_dtype(df[column]):
+                st.subheader(f"Histogram of {column}")
+                fig, ax = plt.subplots()
+                df[column].plot(kind='hist', ax=ax)
+                plt.xlabel(column)
+                st.pyplot(fig)
+            else:
+                st.write(f"Note: {column} is not numeric and cannot be displayed as a histogram.")
+    elif chart_type == "Bar Chart":
+        for column in columns:
+            if not pd.api.types.is_numeric_dtype(df[column]):
+                st.subheader(f"Bar Chart of {column}")
+                fig, ax = plt.subplots()
+                df[column].value_counts().plot(kind='bar', ax=ax)
+                plt.xticks(rotation=45)
+                st.pyplot(fig)
+            else:
+                st.write(f"Note: {column} is numeric and better suited for histograms.")
+
 def main():
     st.sidebar.title("Analysis Options")
     app_mode = st.sidebar.selectbox("Choose the type of analysis", ["IFC File Analysis", "Excel File Analysis"])
@@ -64,7 +87,17 @@ def excel_file_analysis():
     uploaded_file = st.file_uploader("Upload an Excel file", type=['xlsx'])
     if uploaded_file is not None:
         df = read_excel(uploaded_file)
-        st.write(df)
+        
+        # Allow user to select columns for analysis
+        selected_columns = st.multiselect("Select columns to display", df.columns.tolist(), default=df.columns.tolist())
+        
+        # Display the filtered dataframe with selected columns
+        df_filtered = df[selected_columns]
+        st.write(df_filtered)
+        
+        # Visualization based on selected columns
+        if st.button("Visualize Selected Data"):
+            visualize_data(df_filtered, selected_columns)
 
 if __name__ == "__main__":
     main()
