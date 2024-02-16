@@ -31,6 +31,24 @@ def visualize_component_count(component_count, chart_type='bar'):
     plt.tight_layout()
     return fig
 
+# Function to visualize data from Excel
+def visualize_data(df, columns):
+    chart_type = st.selectbox("Select chart type", ["Histogram", "Bar Chart"], index=0)
+    for column in columns:
+        if chart_type == "Histogram" and pd.api.types.is_numeric_dtype(df[column]):
+            st.subheader(f"Histogram of {column}")
+            fig, ax = plt.subplots()
+            df[column].plot(kind='hist', ax=ax)
+            plt.xlabel(column)
+            st.pyplot(fig)
+        elif chart_type == "Bar Chart" and not pd.api.types.is_numeric_dtype(df[column]):
+            st.subheader(f"Bar Chart of {column}")
+            fig, ax = plt.subplots()
+            df[column].value_counts().plot(kind='bar', ax=ax)
+            plt.xticks(rotation=45)
+            st.pyplot(fig)
+
+# Function for detailed analysis in IFC
 def detailed_analysis(ifc_file, product_type, sort_by):
     product_count = defaultdict(int)
     for product in ifc_file.by_type(product_type):
@@ -40,8 +58,7 @@ def detailed_analysis(ifc_file, product_type, sort_by):
 
     total = sum(product_count.values())
     labels, values = zip(*product_count.items()) if product_count else ((), ())
-    
-    # Generate pie chart for building elements products
+
     if values:
         fig, ax = plt.subplots()
         wedges, texts, autotexts = ax.pie(values, labels=labels, autopct=lambda p: '{:.1f}% ({}x)'.format(p, int(round(p * total / 100.0))) if p > 0 else '', startangle=90, counterclock=False)
@@ -50,24 +67,17 @@ def detailed_analysis(ifc_file, product_type, sort_by):
         plt.title(f"Distribution of {product_type} Products by Type")
         st.pyplot(fig)
 
-        # Create a DataFrame for the table
-        data = {
-            'Type': labels,
-            'Count': values,
-            'Percentage': [f'{p:.1f}%' for p in (value * 100.0 / total for value in values)]
-        }
+        data = {'Type': labels, 'Count': values}
         df = pd.DataFrame(data)
-
-        # Sorting the DataFrame based on user selection
         if sort_by == "Name":
             df = df.sort_values('Type')
         elif sort_by == "Count":
             df = df.sort_values('Count', ascending=False)
-
         st.table(df)
     else:
         st.write(f"No products found for {product_type}.")
 
+# IFC file analysis function
 def ifc_file_analysis():
     uploaded_file = st.file_uploader("Choose an IFC file", type=['ifc'])
     if uploaded_file is not None:
@@ -85,13 +95,22 @@ def ifc_file_analysis():
             if st.checkbox("Show Detailed Component Analysis"):
                 product_types = sorted({entity.is_a() for entity in ifc_file.by_type('IfcProduct')})
                 selected_product_type = st.selectbox("Select a product type for detailed analysis", product_types)
-
-                # Add a selectbox for sorting criteria
                 sort_by = st.selectbox("Sort table by", ["Name", "Count"], index=1)
-
                 detailed_analysis(ifc_file, selected_product_type, sort_by)
         finally:
             os.remove(tmp_file_path)
+
+# Excel file analysis function
+def excel_file_analysis():
+    uploaded_file = st.file_uploader("Upload an Excel file", type=['xlsx'])
+    if uploaded_file is not None:
+        df = read_excel(uploaded_file)
+        selected_columns = st.multiselect("Select columns to display", df.columns.tolist(), default=df.columns.tolist())
+        if selected_columns:
+            df_filtered = df[selected_columns]
+            st.dataframe(df_filtered)
+            if st.button("Visualize Selected Data"):
+                visualize_data(df_filtered, selected_columns)
 
 def main():
     st.sidebar.title("Analysis Options")
@@ -99,7 +118,8 @@ def main():
 
     if app_mode == "IFC File Analysis":
         ifc_file_analysis()
-    # Incorporate Excel file analysis or other functionality as needed
+    elif app_mode == "Excel File Analysis":
+        excel_file_analysis()
 
 if __name__ == "__main__":
     main()
