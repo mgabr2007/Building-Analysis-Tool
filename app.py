@@ -79,21 +79,24 @@ def ifc_file_analysis():
         finally:
             os.remove(tmp_file_path)
 
-def detailed_analysis(ifc_file, product_type):
-    components = ifc_file.by_type(product_type)
-    # Count instances of the selected component type
-    component_count = len(components)
+def detailed_analysis(ifc_file, selected_product_type):
+    # Use the existing component_count for visualization
+    component_count = count_building_components(ifc_file)
 
-    # Prepare data for pie chart
-    labels = [product_type]
-    values = [component_count]
+    # Check if the selected component type is in the component count dictionary
+    if selected_product_type in component_count:
+        # Prepare data for the pie chart
+        labels = [selected_product_type, "Other Components"]
+        values = [component_count[selected_product_type], sum(component_count.values()) - component_count[selected_product_type]]
 
-    # Generate pie chart
-    fig, ax = plt.subplots()
-    ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90)
-    ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-    plt.title(f"Count of {product_type}")
-    st.pyplot(fig)
+        # Generate pie chart
+        fig, ax = plt.subplots()
+        ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90)
+        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+        plt.title(f"Distribution of {selected_product_type} among other components")
+        st.pyplot(fig)
+    else:
+        st.write("No components found of this type.")
 
 def show_spatial_structure(ifc_file):
     buildings = ifc_file.by_type('IfcBuilding')
