@@ -31,6 +31,32 @@ def visualize_component_count(component_count, chart_type='bar'):
     plt.tight_layout()
     return fig
 
+def ifc_file_analysis():
+    uploaded_file = st.file_uploader("Choose an IFC file", type=['ifc'])
+    if uploaded_file is not None:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.ifc') as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            tmp_file_path = tmp_file.name
+        
+        try:
+            ifc_file = ifcopenshell.open(tmp_file_path)
+            component_count = count_building_components(ifc_file)
+            chart_type = st.radio("Chart Type", ['bar', 'pie'])
+            fig = visualize_component_count(component_count, chart_type)
+            st.pyplot(fig)
+
+            # Display all component types and their counts
+            st.subheader("Component Type Counts")
+            for component_type, count in sorted(component_count.items(), key=lambda item: item[1], reverse=True):
+                st.text(f"{component_type}: {count}")
+
+            if st.checkbox("Show Detailed Component Analysis"):
+                product_types = sorted({entity.is_a() for entity in ifc_file.by_type('IfcProduct')})
+                selected_product_type = st.selectbox("Select a product type for detailed analysis", product_types)
+                detailed_analysis(ifc_file, selected_product_type)
+        finally:
+            os.remove(tmp_file_path)
+
 def detailed_analysis(ifc_file, product_type):
     subtype_count = defaultdict(int)
     for component in ifc_file.by_type(product_type):
@@ -46,34 +72,13 @@ def detailed_analysis(ifc_file, product_type):
     else:
         st.write("No subtypes found for the selected component.")
 
-def ifc_file_analysis():
-    uploaded_file = st.file_uploader("Choose an IFC file", type=['ifc'])
-    if uploaded_file is not None:
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.ifc') as tmp_file:
-            tmp_file.write(uploaded_file.getvalue())
-            tmp_file_path = tmp_file.name
-        
-        try:
-            ifc_file = ifcopenshell.open(tmp_file_path)
-            component_count = count_building_components(ifc_file)
-            chart_type = st.radio("Chart Type", ['bar', 'pie'])
-            fig = visualize_component_count(component_count, chart_type)
-            st.pyplot(fig)
-
-            if st.checkbox("Show Detailed Component Analysis"):
-                product_types = sorted({entity.is_a() for entity in ifc_file.by_type('IfcProduct')})
-                selected_product_type = st.selectbox("Select a product type for detailed analysis", product_types)
-                detailed_analysis(ifc_file, selected_product_type)
-        finally:
-            os.remove(tmp_file_path)
-
 def main():
     st.sidebar.title("Analysis Options")
     app_mode = st.sidebar.selectbox("Choose the type of analysis", ["IFC File Analysis", "Excel File Analysis"])
 
     if app_mode == "IFC File Analysis":
         ifc_file_analysis()
-    # Include the rest of your Streamlit app logic here
+    # Excel file analysis function call can be added here as well
 
 if __name__ == "__main__":
     main()
