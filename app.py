@@ -46,11 +46,11 @@ def read_excel(file):
         return pd.DataFrame()
 
 # Unified visualization function for both bar and pie charts using Plotly
-def visualize_component_count(component_count, chart_type='bar'):
+def visualize_component_count(component_count, chart_type='Bar Chart'):
     labels, values = zip(*sorted(component_count.items(), key=lambda item: item[1], reverse=True)) if component_count else ((), ())
-    if chart_type == 'bar':
+    if chart_type == 'Bar Chart':
         fig = px.bar(x=labels, y=values)
-    elif chart_type == 'pie':
+    elif chart_type == 'Pie Chart':
         fig = px.pie(values=values, names=labels)
     fig.update_layout(transition_duration=500)
     return fig
@@ -94,14 +94,14 @@ def ifc_file_analysis():
             try:
                 ifc_file = ifcopenshell.open(tmp_file_path)
                 component_count = count_building_components(ifc_file)
-                chart_type = st.radio("Chart Type", ['bar', 'pie'], key="chart")
+                chart_type = st.radio("Chart Type", options=['Bar Chart', 'Pie Chart'], key="chart")
                 fig = visualize_component_count(component_count, chart_type)
                 st.plotly_chart(fig)
 
                 with st.expander("Show Detailed Component Analysis"):
                     product_types = sorted({entity.is_a() for entity in ifc_file.by_type('IfcProduct')})
                     selected_product_type = st.selectbox("Select a product type for detailed analysis", product_types, key="product_type")
-                    sort_by = st.radio("Sort by", ["Type", "Count"], key="sort")
+                    sort_by = st.select_slider("Sort by", ["Type", "Count"], value='Count', key="sort")
                     detailed_analysis(ifc_file, selected_product_type, sort_by)
             finally:
                 os.remove(tmp_file_path)
