@@ -25,6 +25,7 @@ from collections import defaultdict
 import tempfile
 import os
 import plotly.express as px  # For interactive plots
+import plotly.graph_objects as go
 
 # Function to count building components in an IFC file
 def count_building_components(ifc_file):
@@ -132,6 +133,92 @@ def generate_insights(df):
     if not df.empty:
         st.write("Descriptive Statistics:", df.describe())
         # Placeholder for more sophisticated analysis or predictive modeling
+# Comparison Analysis Functions
+def compare_ifc_files(ifc_file1, ifc_file2):
+    # Compare the building components of two IFC files
+    components1 = count_building_components(ifc_file1)
+    components2 = count_building_components(ifc_file2)
+
+    # Initialize a dictionary to store comparison results
+    comparison_result = defaultdict(dict)
+
+    # Get all unique component types from both files
+    all_component_types = set(components1.keys()) | set(components2.keys())
+
+    # Loop through each component type and compare
+    for component_type in all_component_types:
+        count1 = components1.get(component_type, 0)
+        count2 = components2.get(component_type, 0)
+        
+        # Store comparison data
+        comparison_result[component_type]['File 1 Count'] = count1
+        comparison_result[component_type]['File 2 Count'] = count2
+        comparison_result[component_type]['Difference'] = count1 - count2
+
+    return comparison_result
+
+
+def compare_ifc_files_ui():
+    st.title("Compare IFC Files")
+    # Instructions for the user
+    st.write("""
+### Instructions for Comparing IFC Files:
+
+Please follow the steps below to compare the components of two IFC (Industry Foundation Classes) files:
+
+1. **Upload First IFC File:** Click on the "Choose File" button below labeled **"Choose the first IFC file"**. Navigate to the location of the first IFC file on your device and select it for upload.
+
+2. **Upload Second IFC File:** Similarly, use the second "Choose File" button labeled **"Choose the second IFC file"** to upload the second IFC file you wish to compare with the first one.
+
+After uploading both files, you will be prompted to:
+
+3. **Select a Component Type for Detailed Comparison:** From the dropdown menu, select one of the available component types (e.g., walls, doors, windows) to compare between the two IFC files. The application will display a bar chart showing the count of the selected component type in both files, along with their difference.
+
+4. **View Overall Comparison:** After selecting a specific component type, you can also choose to view an overall comparison of all components by clicking the **"Show Overall Comparison"** button. This will display a pie chart visualizing the proportion of differences across all component types, giving you a comprehensive overview of how the two IFC files differ.
+
+This step-by-step process will help you understand the detailed differences in building components between the two IFC files, as well as provide an overall summary of the differences.
+""")
+
+    uploaded_file1 = st.file_uploader("Choose the first IFC file", type=['ifc'], key="ifc1")
+    uploaded_file2 = st.file_uploader("Choose the second IFC file", type=['ifc'], key="ifc2")
+
+    if uploaded_file1 and uploaded_file2:
+        file_name1 = uploaded_file1.name
+        file_name2 = uploaded_file2.name
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.ifc') as tmp_file1, \
+             tempfile.NamedTemporaryFile(delete=False, suffix='.ifc') as tmp_file2:
+            tmp_file1.write(uploaded_file1.getvalue())
+            tmp_file2.write(uploaded_file2.getvalue())
+            tmp_file1_path = tmp_file1.name
+            tmp_file2_path = tmp_file2.name
+
+        ifc_file1 = ifcopenshell.open(tmp_file1_path)
+        ifc_file2 = ifcopenshell.open(tmp_file2_path)
+        comparison_result = compare_ifc_files(ifc_file1, ifc_file2)
+
+        all_component_types = list(comparison_result.keys())
+        selected_component = st.selectbox("Select a component type for detailed comparison:", all_component_types, key="component_type")
+        
+        # Filter the comparison_result for the selected component
+        if selected_component:
+            component_data = comparison_result[selected_component]
+            fig = go.Figure(data=[
+                go.Bar(name=file_name1, x=[selected_component], y=[component_data['File 1 Count']], marker_color='indianred'),
+                go.Bar(name=file_name2, x=[selected_component], y=[component_data['File 2 Count']], marker_color='lightseagreen'),
+                go.Bar(name='Difference', x=[selected_component], y=[component_data['Difference']], marker_color='lightslategray')
+            ])
+            fig.update_layout(barmode='group', title_text=f'Comparison of {selected_component}', xaxis_title="Component Type", yaxis_title="Count")
+            st.plotly_chart(fig)
+
+            # Show overall comparison with a pie chart for all components
+            if st.button("Show Overall Comparison"):
+                differences = [comparison_result[comp]['Difference'] for comp in all_component_types]
+                fig_pie = go.Figure(data=[go.Pie(labels=all_component_types, values=differences, title='Overall Differences in Components')])
+                st.plotly_chart(fig_pie)
+
+        os.remove(tmp_file1_path)
+        os.remove(tmp_file2_path)
 
 def welcome_page():
     st.title("IFC and Excel File Analysis Tool")
@@ -153,25 +240,36 @@ All rights reserved.
 
 """)
 
+# Main function updated for button-based navigation
 def main():
     st.sidebar.title("Navigation")
+    # Navigation buttons
     if st.sidebar.button("Home"):
         set_analysis_choice("Welcome")
     if st.sidebar.button("Analyze IFC File"):
-        set_analysis_choice("IFC File Analysis")
+        set_analysis_choice("Analyze IFC File")
     if st.sidebar.button("Analyze Excel File"):
-        set_analysis_choice("Excel File Analysis")
+        set_analysis_choice("Analyze Excel File")
+    if st.sidebar.button("Compare IFC Files"):
+        set_analysis_choice("Compare IFC Files")
 
-    if st.session_state.analysis_choice == 'Welcome':
+
+    # Handling the display based on the user's choice
+    if 'analysis_choice' not in st.session_state:
+        st.session_state.analysis_choice = "Welcome"
+
+    if st.session_state.analysis_choice == "Welcome":
         welcome_page()
-    elif st.session_state.analysis_choice == "IFC File Analysis":
+    elif st.session_state.analysis_choice == "Analyze IFC File":
         ifc_file_analysis()
-    elif st.session_state.analysis_choice == "Excel File Analysis":
+    elif st.session_state.analysis_choice == "Analyze Excel File":
         excel_file_analysis()
+    elif st.session_state.analysis_choice == "Compare IFC Files":
+        compare_ifc_files_ui()  # Ensure this function does not require arguments and is defined correctly
+
 
 if __name__ == "__main__":
     main()
-
 # Add copyright notice and license information to the sidebar
 st.sidebar.markdown("""
 ----------------
